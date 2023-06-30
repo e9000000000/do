@@ -1,0 +1,287 @@
+<div class="wrapper">
+  <div class="input-wrapper"><span class="input"></span></div>
+  <div class="todos"></div>
+</div>
+
+<script>
+  const inp = document.querySelector('.input')
+  const todos = document.querySelector('.todos')
+  let todoCount = 0
+  let editId = 0
+  let currentDrugable = null
+  
+
+  function ptime(time) {
+      return `${parseInt(time / 60 / 60)}h ${parseInt(time / 60) % 60}m`
+  }
+
+  function addTodo(text, time) {
+      todoCount += 1
+      todos.innerHTML += `<div data-id="${todoCount}" data-time="${time}" class="todo">
+          
+          <p><span class="buttons">
+              <button onclick="toggleTime(${todoCount})" class="toggle-time time"></button>
+              <button onclick="edit(${todoCount})" class="edit">E</button>
+              <button onclick="del(${todoCount})" class="delete">X</button>
+              <button class="druganddrop">:::</button>
+          </span></p><p class="text">${text}</p>
+      </div>`
+  }
+
+  if (localStorage.todos) {
+      JSON.parse(localStorage.todos).forEach(function(e) {
+	  addTodo(e.text, e.time)
+      })
+  }
+  
+  inp.addEventListener('keypress', function(e) {
+      if (e.key != "Enter")
+	  return
+
+      if (!editId) {
+	  addTodo('', 0)
+	  editId = todoCount
+      }
+      const editTodo = todos.querySelector(`*[data-id="${editId}"]`)
+      editTodo.querySelector('.text').textContent = inp.textContent
+      inp.textContent = ''
+      editId = 0
+  })
+
+  function edit(id) {
+      editId = id
+      const editTodo = todos.querySelector(`*[data-id="${editId}"]`)
+      inp.textContent = editTodo.querySelector('.text').textContent
+      inp.focus()
+  }
+  function del(id) {
+      todos.querySelector(`*[data-id="${id}"]`).remove()
+  }
+  function toggleTime(id) {
+      const currentTodo = todos.querySelector(`*[data-id="${id}"]`)
+      const wasActive = currentTodo.classList.contains('active')
+      todos.querySelectorAll('.active').forEach(function(e) {
+	  e.classList.remove('active')
+	  e.dataset.last_time = 0
+      })
+      if (!wasActive) {
+	  currentTodo.classList.add('active')
+      }
+  }
+
+  setInterval(function() {
+      const now = Date.now()
+      todos.querySelectorAll('.active').forEach(function(e) {
+	  const lastTime = parseInt(e.dataset.last_time)
+	  if (lastTime) {
+	      const currentTime = +e.dataset.time + now - lastTime
+	      e.dataset.time = currentTime
+	      
+	  }
+	  e.dataset.last_time = now
+      })
+
+      const saveList = []
+      Array.from(todos.children).forEach(function(e) {
+	  if (!e.classList.contains('todo'))
+	      return
+	  
+	  e.querySelector('.time').textContent = ptime(parseInt(e.dataset.time / 1000))
+	  saveList.push({
+	      text: e.querySelector('.text').textContent,
+	      time: e.dataset.time,
+	  })
+      })
+      localStorage.todos = JSON.stringify(saveList)
+  }, 200)
+
+  document.querySelectorAll('.druganddrop').forEach(function(element) {
+      element.addEventListener('mousedown', function(mouseEvent) {
+	  const todo = element.parentElement.parentElement.parentElement
+	  
+	  currentDrugable = {
+	      element: todo,
+	      height: todo.offsetHeight,
+	      offsetY: mouseEvent.pageY - todo.offsetTop,
+	  }
+	  const placeholder = document.createElement('div')
+	  placeholder.classList.add('placeholder')
+	  placeholder.style.height = currentDrugable.height
+	  todo.parentElement.insertBefore(placeholder, todo)
+	  
+	  todo.style.top = mouseEvent.pageY - currentDrugable.offsetY
+	  todo.classList.add('druging')
+      })
+  })
+
+  document.addEventListener('mousemove', function(e) {
+      if (!currentDrugable)
+	  return
+
+      const percentInPx = window.innerHeight * 0.15
+      if (e.clientY < percentInPx) {
+	  window.scrollBy(0, -20)
+      } else if (e.clientY > window.innerHeight - percentInPx) {
+	  window.scrollBy(0, 20)
+      }
+
+      currentDrugable.element.style.top = e.pageY - currentDrugable.offsetY
+  })
+
+  setInterval(function() {
+      if (!currentDrugable)
+	  return
+
+      const center = currentDrugable.element.offsetTop + currentDrugable.height / 2
+
+      document.querySelectorAll('.targetline').forEach(ph => ph.remove())
+
+      const targetline = document.createElement('div')
+      targetline.classList.add('targetline')
+      currentDrugable.targetline = targetline
+
+
+      const nodes = [...todos.querySelectorAll('.todo:not(.druging),.placeholder')]
+      for (let i=0; i <= nodes.length; i++) {
+	  const bottomElement = i < nodes.length ? nodes[i] : null
+	  const topElement = i > 0 ? nodes[i - 1] : null
+	  
+	  const topCenter = topElement ? topElement.offsetTop + topElement.offsetHeight / 2 : -99999999
+	  const bottomCenter = bottomElement ? bottomElement.offsetTop + bottomElement.offsetHeight / 2 : 99999999
+
+	  if (topCenter < center && center < bottomCenter) {
+	      if (bottomElement)
+		  bottomElement.parentElement.insertBefore(targetline, bottomElement)
+	      else
+		  topElement.parentElement.appendChild(targetline)
+	      return
+	  }
+      }
+  }, 50)
+
+  document.addEventListener('mouseup', () => {
+      if (!currentDrugable)
+	  return
+
+      const targetline = currentDrugable.targetline
+      const todo = currentDrugable.element
+      currentDrugable = null
+      targetline.parentElement.insertBefore(todo, targetline)
+      targetline.remove()
+
+      todos.querySelectorAll('.placeholder').forEach(e => e.remove())
+
+      todo.classList.remove('druging')
+  })
+
+</script>
+
+<style>
+  ::-webkit-scrollbar {
+      width: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+      background-color: black;
+  }
+
+  ::-webkit-scrollbar-thumb {
+      background-color: #666;
+  }
+  * {
+      padding: 0;
+      margin: 0;
+      transition: color .5s;
+      font-size: 22px;
+      font-family: monospace;
+  }
+  body {
+      color: #ffe;
+      background-color: black;
+  }
+  .todo {
+      margin: 10px 0;
+      display: block;
+  }
+  button {
+      color: #776;
+      cursor: pointer;
+      padding: 10px;
+      border: 0;
+      width: 100%;
+      height: 33.333333333%;
+      text-wrap: nowrap;
+      background-color: black;
+  }
+  .wrapper {
+      display: flex;
+      flex-direction: column;
+      width: 90%;
+      margin: 20px auto;
+  }
+  .input {
+      display: flex;
+      margin: 50px auto;
+      -webkit-user-modify: read-write;
+      overflow-wrap: anywhere;
+      -webkit-line-break: after-white-space;
+      padding: 5px;
+      justify-content: center;
+      min-width: 30px;
+      width: fit-content;
+      border: 0;
+      border-left: solid 1px crimson;
+      border-right: solid 1px crimson;
+      text-align: center;
+      outline: none;
+      background-color: #000;
+      color: #ffe;
+  }
+  .input:focus {
+      
+  }
+  .text {
+      word-wrap: break-word;
+      padding: 10px;
+  }
+  .text::first-letter {
+      color: crimson;
+  }
+  .time {
+      min-width: 110px;
+  }
+  .active button {
+      color: #eed;
+  }
+  .buttons {
+      display: flex;
+      float: right;
+      margin: 0 0 10px 10px;
+  }
+  .input-wrapper {
+      text-align: center;
+  }
+  button:hover {
+      color: crimson;
+  }
+  .druging {
+      position: absolute;
+      width: 90%;
+      opacity: .5;
+      pointer-events: none;
+  }
+  .todos {
+      margin-bottom: 100vh;
+  }
+  .targetline {
+      height: 0;
+      position: relative;
+  }
+  .targetline::after {
+      content: "";
+      position: absolute;
+      width: 100%;
+      background-color: crimson;
+      height: 1px;
+  }
+</style>
