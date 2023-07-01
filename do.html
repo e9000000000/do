@@ -1,5 +1,5 @@
 <div class="wrapper">
-  <div class="input-wrapper"><span class="input"></span></div>
+  <div class="input-wrapper"><span class="input" contenteditable="true" data-ph="+"></span></div>
   <div class="todos"></div>
 </div>
 
@@ -21,7 +21,7 @@
           
           <p><span class="buttons">
               <button onclick="toggleTime(${todoCount})" class="toggle-time time"></button>
-              <button onclick="edit(${todoCount})" class="edit">E</button>
+              <button onclick="edit(${todoCount})" class="edit">^</button>
               <button onclick="del(${todoCount})" class="delete">X</button>
               <button class="druganddrop">:::</button>
           </span></p><p class="text">${text}</p>
@@ -44,6 +44,8 @@
       }
       const editTodo = todos.querySelector(`*[data-id="${editId}"]`)
       editTodo.querySelector('.text').textContent = inp.textContent
+      if (inp.textContent == '')
+	  del(editId)
       inp.textContent = ''
       editId = 0
   })
@@ -221,6 +223,7 @@
   }
   .input {
       display: flex;
+      min-height: 1em;
       margin: 50px auto;
       -webkit-user-modify: read-write;
       overflow-wrap: anywhere;
@@ -237,8 +240,10 @@
       background-color: #000;
       color: #ffe;
   }
-  .input:focus {
-      
+  [contenteditable=true]:empty:not(:focus):before{
+      content:attr(data-ph);
+      color:#776;
+      pointer-events: none;
   }
   .text {
       word-wrap: break-word;
