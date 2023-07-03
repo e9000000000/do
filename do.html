@@ -15,17 +15,40 @@
       return `${parseInt(time / 60 / 60)}h ${parseInt(time / 60) % 60}m`
   }
 
+  function makeDragable(todo) {
+      const element = todo.querySelector('.druganddrop')
+      element.addEventListener('mousedown', function(mouseEvent) {
+	  currentDrugable = {
+	      element: todo,
+	      height: todo.offsetHeight,
+	      offsetY: mouseEvent.pageY - todo.offsetTop,
+	  }
+	  const placeholder = document.createElement('div')
+	  placeholder.classList.add('placeholder')
+	  placeholder.style.height = currentDrugable.height
+	  todo.parentElement.insertBefore(placeholder, todo)
+	  
+	  todo.style.top = mouseEvent.pageY - currentDrugable.offsetY
+	  todo.classList.add('druging')
+      })
+  }
+
   function addTodo(text, time) {
       todoCount += 1
-      todos.innerHTML += `<div data-id="${todoCount}" data-time="${time}" class="todo">
-          
+      const todo = document.createElement('div')
+      todo.dataset.id = todoCount
+      todo.dataset.time = time
+      todo.classList.add('todo')
+      todo.innerHTML += `
           <p><span class="buttons">
               <button onclick="toggleTime(${todoCount})" class="toggle-time time"></button>
               <button onclick="edit(${todoCount})" class="edit">^</button>
               <button onclick="del(${todoCount})" class="delete">X</button>
               <button class="druganddrop">:::</button>
           </span></p><p class="text">${text}</p>
-      </div>`
+      `
+      todos.appendChild(todo)
+      makeDragable(todo)
   }
 
   if (localStorage.todos) {
@@ -96,25 +119,6 @@
       })
       localStorage.todos = JSON.stringify(saveList)
   }, 200)
-
-  document.querySelectorAll('.druganddrop').forEach(function(element) {
-      element.addEventListener('mousedown', function(mouseEvent) {
-	  const todo = element.parentElement.parentElement.parentElement
-	  
-	  currentDrugable = {
-	      element: todo,
-	      height: todo.offsetHeight,
-	      offsetY: mouseEvent.pageY - todo.offsetTop,
-	  }
-	  const placeholder = document.createElement('div')
-	  placeholder.classList.add('placeholder')
-	  placeholder.style.height = currentDrugable.height
-	  todo.parentElement.insertBefore(placeholder, todo)
-	  
-	  todo.style.top = mouseEvent.pageY - currentDrugable.offsetY
-	  todo.classList.add('druging')
-      })
-  })
 
   document.addEventListener('mousemove', function(e) {
       if (!currentDrugable)
